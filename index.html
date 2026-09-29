@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>小朋友 Schedule & 支出 Dashboard</title>
+  <title>Jessica Dashboard</title>
   <style>
     /* ================= 螢幕顯示樣式 ================= */
     body {
@@ -186,16 +186,16 @@
     <div id="tab-schedule">
       <div class="toolbar">
         <button class="btn-all" onclick="filterSchedule('all')">👨‍👩‍👧‍👦 全部</button>
-        <button class="btn-child-a" onclick="filterSchedule('child-a')">👧 大仔</button>
-        <button class="btn-child-b" onclick="filterSchedule('child-b')">👦 細仔</button>
+        <button class="btn-child-a" onclick="filterSchedule('child-a')">👦 Justin</button>
+        <button class="btn-child-b" onclick="filterSchedule('child-b')">👧 Jenna</button>
         <button class="btn-print" onclick="window.print()">🖨️ 列印行程 (A4)</button>
       </div>
 
       <div class="control-panel">
         <div class="add-form">
           <select id="schedule-child">
-            <option value="child-a">👧 大仔</option>
-            <option value="child-b">👦 細仔</option>
+            <option value="child-a">👦 Justin</option>
+            <option value="child-b">👧 Jenna</option>
           </select>
           <input type="text" id="schedule-title" placeholder="行程名稱 (例如: 英文補習)">
           <input type="text" id="schedule-time" placeholder="時間 (例如: 星期一 16:00-17:30)">
@@ -223,8 +223,8 @@
       <div class="control-panel">
         <div class="add-form">
           <select id="expense-child">
-            <option value="child-a">👧 大仔</option>
-            <option value="child-b">👦 細仔</option>
+            <option value="child-a">👦 Justin</option>
+            <option value="child-b">👧 Jenna</option>
             <option value="family">🏠 家庭/公共</option>
           </select>
           <input type="month" id="expense-month">
@@ -241,11 +241,11 @@
       <!-- 支出統計摘要 -->
       <div class="summary-box">
         <div class="summary-card">
-          <h4>👧 大仔總開支</h4>
+          <h4>👦 Justin總開支</h4>
           <div class="amount" id="total-child-a">HK$ 0</div>
         </div>
         <div class="summary-card">
-          <h4>👦 細仔總開支</h4>
+          <h4>👧 Jenna總開支</h4>
           <div class="amount" id="total-child-b">HK$ 0</div>
         </div>
         <div class="summary-card">
@@ -307,7 +307,7 @@
       const time = document.getElementById('schedule-time').value.trim();
       if (!title) return alert('請輸入行程名稱');
       
-      const prefix = child === 'child-a' ? '👧 大仔 - ' : '👦 細仔 - ';
+      const prefix = child === 'child-a' ? '👦 Justin - ' : '👧 Jenna - ';
       schedules.push({ id: Date.now(), child, title: prefix + title, time });
       document.getElementById('schedule-title').value = '';
       document.getElementById('schedule-time').value = '';
@@ -339,7 +339,7 @@
 
         const div = document.createElement('div');
         div.className = `item-card ${item.child}`;
-        const label = item.child === 'child-a' ? '👧 大仔' : (item.child === 'child-b' ? '👦 細仔' : '🏠 家庭');
+        const label = item.child === 'child-a' ? '👦 Justin' : (item.child === 'child-b' ? '👧 Jenna' : '🏠 家庭');
         
         div.innerHTML = `
           <div>
