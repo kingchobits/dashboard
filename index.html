@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jessica Dashboard</title>
+  <title>Dashboard</title>
   <style>
     /* ================= 螢幕顯示樣式 ================= */
     body {
@@ -151,7 +151,7 @@
       .nav-tabs, .toolbar, .control-panel, .btn-edit, .btn-delete { display: none !important; }
       body { background: white; padding: 0; }
       .card-container { box-shadow: none; padding: 0; }
-      
+
       .item-card {
         background: white !important;
         border: 1px solid #000 !important;
@@ -186,23 +186,23 @@
     <div id="tab-schedule">
       <div class="toolbar">
         <button class="btn-all" onclick="filterSchedule('all')">👨‍👩‍👧‍👦 全部</button>
-        <button class="btn-child-a" onclick="filterSchedule('child-a')">👦 Justin</button>
-        <button class="btn-child-b" onclick="filterSchedule('child-b')">👧 Jenna</button>
+        <button class="btn-child-a" onclick="filterSchedule('child-a')">👦Justin</button>
+        <button class="btn-child-b" onclick="filterSchedule('child-b')">👧Jenna</button>
         <button class="btn-print" onclick="window.print()">🖨️ 列印行程 (A4)</button>
       </div>
 
       <div class="control-panel">
         <div class="add-form">
           <select id="schedule-child">
-            <option value="child-a">👦 Justin</option>
-            <option value="child-b">👧 Jenna</option>
+            <option value="child-a">👦Justin</option>
+            <option value="child-b">👧Jenna</option>
           </select>
           <input type="text" id="schedule-title" placeholder="行程名稱 (例如: 英文補習)">
           <input type="text" id="schedule-time" placeholder="時間 (例如: 星期一 16:00-17:30)">
           <button class="btn-add" onclick="addSchedule()">➕ 新增行程</button>
         </div>
         <div class="add-form">
-          <label style="font-size:13px; font-weight:bold;">📥 匯入 Google CSV：</label>
+          <label style="font-size:13px; font-weight:bold;">📥 匯入 CSV：</label>
           <input type="file" id="csv-file" accept=".csv">
           <button class="btn-csv" onclick="importCSV()">匯入 CSV</button>
         </div>
@@ -223,15 +223,14 @@
       <div class="control-panel">
         <div class="add-form">
           <select id="expense-child">
-            <option value="child-a">👦 Justin</option>
-            <option value="child-b">👧 Jenna</option>
+            <option value="child-a">👦Justin</option>
+            <option value="child-b">👧Jenna</option>
             <option value="family">🏠 家庭/公共</option>
           </select>
           <input type="month" id="expense-month">
           <input type="text" id="expense-title" placeholder="開支項目 (例如: 游泳學費)">
           <input type="number" id="expense-amount" placeholder="金額 (HK$)" style="width: 110px;">
-          
-          <!-- 動態按鈕切換：新增 vs 儲存編輯 -->
+
           <button id="btn-expense-add" class="btn-add" onclick="addExpense()">➕ 新增支出</button>
           <button id="btn-expense-save" class="btn-save" onclick="saveEditExpense()" style="display:none;">💾 儲存修改</button>
           <button id="btn-expense-cancel" class="btn-cancel" onclick="cancelEditExpense()" style="display:none;">取消</button>
@@ -241,11 +240,11 @@
       <!-- 支出統計摘要 -->
       <div class="summary-box">
         <div class="summary-card">
-          <h4>👦 Justin總開支</h4>
+          <h4>👦Justin總開支</h4>
           <div class="amount" id="total-child-a">HK$ 0</div>
         </div>
         <div class="summary-card">
-          <h4>👧 Jenna總開支</h4>
+          <h4>👧Jenna總開支</h4>
           <div class="amount" id="total-child-b">HK$ 0</div>
         </div>
         <div class="summary-card">
@@ -270,7 +269,7 @@
     let schedules = JSON.parse(localStorage.getItem('mySchedules')) || [];
     let expenses = JSON.parse(localStorage.getItem('myExpenses')) || [];
     let scheduleFilter = 'all';
-    let editingExpenseId = null; // 正在編輯的支出 ID
+    let editingExpenseId = null;
 
     // Tab 切換
     function switchTab(tab, btn) {
@@ -306,8 +305,8 @@
       const title = document.getElementById('schedule-title').value.trim();
       const time = document.getElementById('schedule-time').value.trim();
       if (!title) return alert('請輸入行程名稱');
-      
-      const prefix = child === 'child-a' ? '👦 Justin - ' : '👧 Jenna - ';
+
+      const prefix = child === 'child-a' ? '👦Justin - ' : '👧Jenna - ';
       schedules.push({ id: Date.now(), child, title: prefix + title, time });
       document.getElementById('schedule-title').value = '';
       document.getElementById('schedule-time').value = '';
@@ -324,11 +323,107 @@
       renderSchedules();
     }
 
-    /* ================= 支出邏輯 (Add, Edit, Delete) ================= */
+    /* ================= 強大 CSV 解析邏輯 ================= */
+    function importCSV() {
+      const fileInput = document.getElementById('csv-file');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('請先選擇一個 CSV 檔案！');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const text = e.target.result;
+        const lines = text.split(/\r\n|\n/);
+
+        if (lines.length < 2) {
+          alert('CSV 檔案為空或格式不正確！');
+          return;
+        }
+
+        // 通用 CSV 行切割（支援雙引號內有逗號）
+        function parseCSVLine(line) {
+          const result = [];
+          let cur = '';
+          let inQuotes = false;
+          for (let i = 0; i < line.length; i++) {
+            const char = line[i];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              result.push(cur.trim().replace(/^"|"$/g, ''));
+              cur = '';
+            } else {
+              cur += char;
+            }
+          }
+          result.push(cur.trim().replace(/^"|"$/g, ''));
+          return result;
+        }
+
+        const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
+
+        // 搜尋可能出現的標題、日期、時間欄位索引
+        const subjectIdx = headers.findIndex(h => h.includes('subject') || h.includes('summary') || h.includes('title') || h.includes('標題') || h.includes('主題') || h.includes('名稱'));
+        const startDateIdx = headers.findIndex(h => h.includes('start date') || h.includes('開始日期') || h.includes('date') || h.includes('日期'));
+        const startTimeIdx = headers.findIndex(h => h.includes('start time') || h.includes('開始時間') || h.includes('time') || h.includes('時間'));
+
+        let addedCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+
+          const row = parseCSVLine(lines[i]);
+
+          // 如果找不到相符欄位，預設用第0欄作標題，第1欄作日期，第2欄作時間
+          const rawTitle = (subjectIdx !== -1 && row[subjectIdx]) ? row[subjectIdx] : row[0];
+          const startDate = (startDateIdx !== -1 && row[startDateIdx]) ? row[startDateIdx] : (row[1] || '');
+          const startTime = (startTimeIdx !== -1 && row[startTimeIdx]) ? row[startTimeIdx] : (row[2] || '');
+
+          if (rawTitle && rawTitle.toLowerCase() !== 'subject') {
+            let childType = 'child-a'; // 預設歸類給 Justin
+            let titleText = rawTitle;
+
+            // 判斷是否為 Jenna / 細仔
+            if (rawTitle.includes('Jenna') || rawTitle.includes('細仔') || rawTitle.includes('細女') || rawTitle.includes('細')) {
+              childType = 'child-b';
+              if (!rawTitle.includes('👧')) titleText = '👧 ' + rawTitle;
+            } else {
+              if (!rawTitle.includes('👦') && !rawTitle.includes('Justin') && !rawTitle.includes('大仔')) titleText = '👦 ' + rawTitle;
+            }
+
+            const timeText = (startDate || startTime) ? `${startDate} ${startTime}`.trim() : '全天 / 未指定時間';
+
+            schedules.push({
+              id: Date.now() + Math.random(),
+              child: childType,
+              title: titleText,
+              time: timeText
+            });
+            addedCount++;
+          }
+        }
+
+        if (addedCount > 0) {
+          alert(`成功匯入 ${addedCount} 項行程！`);
+          fileInput.value = '';
+          renderSchedules();
+        } else {
+          alert('未能讀取到行程，請確定 CSV 檔案內有行程資料。');
+        }
+      };
+
+      // 使用 UTF-8 讀取檔案
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    /* ================= 支出邏輯 ================= */
     function renderExpenses() {
       const list = document.getElementById('expense-list');
       list.innerHTML = '';
-      
+
       let sumA = 0, sumB = 0, sumTotal = 0;
 
       expenses.forEach(item => {
@@ -339,8 +434,8 @@
 
         const div = document.createElement('div');
         div.className = `item-card ${item.child}`;
-        const label = item.child === 'child-a' ? '👦 Justin' : (item.child === 'child-b' ? '👧 Jenna' : '🏠 家庭');
-        
+        const label = item.child === 'child-a' ? '👦Justin' : (item.child === 'child-b' ? '👧Jenna' : '🏠 家庭');
+
         div.innerHTML = `
           <div>
             <span style="font-weight:bold;">[${item.month}] ${label} - ${item.title}</span>
@@ -354,7 +449,6 @@
         list.appendChild(div);
       });
 
-      // 更新統計金額
       document.getElementById('total-child-a').innerText = `HK$ ${sumA}`;
       document.getElementById('total-child-b').innerText = `HK$ ${sumB}`;
       document.getElementById('total-all').innerText = `HK$ ${sumTotal}`;
@@ -362,7 +456,6 @@
       localStorage.setItem('myExpenses', JSON.stringify(expenses));
     }
 
-    // 1. 新增支出
     function addExpense() {
       const child = document.getElementById('expense-child').value;
       const month = document.getElementById('expense-month').value;
@@ -376,7 +469,6 @@
       renderExpenses();
     }
 
-    // 2. 進入編輯狀態 (載入資料到輸入框)
     function editExpense(id) {
       const item = expenses.find(e => e.id === id);
       if (!item) return;
@@ -387,13 +479,11 @@
       document.getElementById('expense-title').value = item.title;
       document.getElementById('expense-amount').value = item.amount;
 
-      // 切換按鈕狀態
       document.getElementById('btn-expense-add').style.display = 'none';
       document.getElementById('btn-expense-save').style.display = 'inline-block';
       document.getElementById('btn-expense-cancel').style.display = 'inline-block';
     }
 
-    // 3. 儲存編輯
     function saveEditExpense() {
       if (!editingExpenseId) return;
 
@@ -404,7 +494,6 @@
 
       if (!title || !amount) return alert('請填寫項目名稱及金額！');
 
-      // 更新陣列中的資料
       expenses = expenses.map(item => {
         if (item.id === editingExpenseId) {
           return { id: item.id, child, month, title, amount };
@@ -416,7 +505,6 @@
       renderExpenses();
     }
 
-    // 取消編輯
     function cancelEditExpense() {
       editingExpenseId = null;
       resetExpenseForm();
@@ -425,7 +513,6 @@
       document.getElementById('btn-expense-cancel').style.display = 'none';
     }
 
-    // 4. 刪除支出
     function deleteExpense(id) {
       if (confirm('確定要刪除這筆支出記錄嗎？')) {
         expenses = expenses.filter(e => e.id !== id);
