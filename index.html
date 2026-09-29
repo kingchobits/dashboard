@@ -192,6 +192,7 @@
       </div>
 
       <div class="control-panel">
+        <!-- 單項新增 -->
         <div class="add-form">
           <select id="schedule-child">
             <option value="child-a">👦Justin</option>
@@ -201,8 +202,15 @@
           <input type="text" id="schedule-time" placeholder="時間 (例如: 星期一 16:00-17:30)">
           <button class="btn-add" onclick="addSchedule()">➕ 新增行程</button>
         </div>
+
+        <!-- 匯入 CSV 區域（新增指定對象選單） -->
         <div class="add-form">
           <label style="font-size:13px; font-weight:bold;">📥 匯入 CSV：</label>
+          <select id="csv-target-child">
+            <option value="child-a">指定入：👦Justin</option>
+            <option value="child-b">指定入：👧Jenna</option>
+            <option value="auto">🤖 自動判斷 (依照內容關鍵字)</option>
+          </select>
           <input type="file" id="csv-file" accept=".csv">
           <button class="btn-csv" onclick="importCSV()">匯入 CSV</button>
         </div>
@@ -326,6 +334,7 @@
     /* ================= 強大 CSV 解析邏輯 ================= */
     function importCSV() {
       const fileInput = document.getElementById('csv-file');
+      const targetChildChoice = document.getElementById('csv-target-child').value; // 取得選擇要匯入給誰
       const file = fileInput.files[0];
 
       if (!file) {
@@ -343,7 +352,6 @@
           return;
         }
 
-        // 通用 CSV 行切割（支援雙引號內有逗號）
         function parseCSVLine(line) {
           const result = [];
           let cur = '';
@@ -365,7 +373,6 @@
 
         const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase());
 
-        // 搜尋可能出現的標題、日期、時間欄位索引
         const subjectIdx = headers.findIndex(h => h.includes('subject') || h.includes('summary') || h.includes('title') || h.includes('標題') || h.includes('主題') || h.includes('名稱'));
         const startDateIdx = headers.findIndex(h => h.includes('start date') || h.includes('開始日期') || h.includes('date') || h.includes('日期'));
         const startTimeIdx = headers.findIndex(h => h.includes('start time') || h.includes('開始時間') || h.includes('time') || h.includes('時間'));
@@ -376,22 +383,32 @@
           if (!lines[i].trim()) continue;
 
           const row = parseCSVLine(lines[i]);
-
-          // 如果找不到相符欄位，預設用第0欄作標題，第1欄作日期，第2欄作時間
           const rawTitle = (subjectIdx !== -1 && row[subjectIdx]) ? row[subjectIdx] : row[0];
           const startDate = (startDateIdx !== -1 && row[startDateIdx]) ? row[startDateIdx] : (row[1] || '');
           const startTime = (startTimeIdx !== -1 && row[startTimeIdx]) ? row[startTimeIdx] : (row[2] || '');
 
           if (rawTitle && rawTitle.toLowerCase() !== 'subject') {
-            let childType = 'child-a'; // 預設歸類給 Justin
+            let childType = targetChildChoice;
             let titleText = rawTitle;
 
-            // 判斷是否為 Jenna / 細仔
-            if (rawTitle.includes('Jenna') || rawTitle.includes('細仔') || rawTitle.includes('細女') || rawTitle.includes('細')) {
-              childType = 'child-b';
-              if (!rawTitle.includes('👧')) titleText = '👧 ' + rawTitle;
-            } else {
-              if (!rawTitle.includes('👦') && !rawTitle.includes('Justin') && !rawTitle.includes('大仔')) titleText = '👦 ' + rawTitle;
+            // 如果選「自動判斷」
+            if (targetChildChoice === 'auto') {
+              if (rawTitle.includes('Jenna') || rawTitle.includes('細仔') || rawTitle.includes('細女') || rawTitle.includes('細')) {
+                childType = 'child-b';
+              } else {
+                childType = 'child-a';
+              }
+            }
+
+            // 格式化標頭名稱
+            if (childType === 'child-a') {
+              if (!rawTitle.includes('👦') && !rawTitle.includes('Justin')) {
+                titleText = '👦Justin - ' + rawTitle;
+              }
+            } else if (childType === 'child-b') {
+              if (!rawTitle.includes('👧') && !rawTitle.includes('Jenna')) {
+                titleText = '👧Jenna - ' + rawTitle;
+              }
             }
 
             const timeText = (startDate || startTime) ? `${startDate} ${startTime}`.trim() : '全天 / 未指定時間';
@@ -415,7 +432,6 @@
         }
       };
 
-      // 使用 UTF-8 讀取檔案
       reader.readAsText(file, 'UTF-8');
     }
 
