@@ -511,157 +511,95 @@
 
     // CSV 匯入
 // 替換原本的 importCSV 函式
-function importCSV(file, targetChild = 'auto') {
+function importCSV() {
+    const fileInput = document.getElementById('csv-file');
+    const targetChild = document.getElementById('csv-target-child').value;
+
+    // 檢查是否有選取檔案
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+        alert('請先選擇要匯入的 CSV 檔案！');
+        return;
+    }
+
+    const file = fileInput.files[0];
     const reader = new FileReader();
     
     reader.onload = function(e) {
         const text = e.target.result;
         const lines = text.split(/\r\n|\n/);
-        if (lines.length < 2) return; // 檔案為空或只有 Header
+        if (lines.length < 2) {
+            alert('CSV 檔案內容為空或格式不正確');
+            return;
+        }
 
         // 解析 CSV Header (轉小寫方便比對)
         const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
         
-        // 尋找 Google Calendar 與簡易格式的欄位索引
+        // 尋找欄位索引
         const idxSubject = headers.findIndex(h => h.includes('subject') || h.includes('title') || h.includes('名稱') || h.includes('主題'));
         const idxStartDate = headers.findIndex(h => h.includes('start date') || h.includes('date') || h.includes('日期'));
-        const idxStartTime = headers.findIndex(h => h.includes('start time') || h.includes('hour') || h.includes('開始時間') || h.includes('小時'));
-        const idxEndDate = headers.findIndex(h => h.includes('end date') || h.includes('結束日期'));
-        const idxEndTime = headers.findIndex(h => h.includes('end time') || h.includes('結束時間'));
+        const idxStartTime = headers.findIndex(h => h.includes('start time') || h.includes('hour') || h.includes('小時') || h.includes('開始時間'));
 
-        let importedEvents = [];
+        if (idxSubject === -1 || idxStartDate === -1) {
+            alert('無法識別 CSV 欄位，請確認 CSV 包含「名稱/Subject」與「日期/Start Date」欄位');
+            return;
+        }
+
+        let addedCount = 0;
 
         for (let i = 1; i < lines.length; i++) {
             if (!lines[i].trim()) continue;
             const cols = parseCSVLine(lines[i]);
 
-            // 取得標題與日期
-            const title = cols[idxSubject] ? cols[idxSubject].trim() : '未命名行程';
+            const title = cols[idxSubject] ? cols[idxSubject].trim() : '';
             const rawStartDate = cols[idxStartDate] ? cols[idxStartDate].trim() : '';
-            if (!rawStartDate) continue;
+            if (!title || !rawStartDate) continue;
 
-            // 格式化日期為 YYYY-MM-DD
+            // 格式化日期 YYYY-MM-DD
             const formattedDate = formatDate(rawStartDate);
             if (!formattedDate) continue;
 
-            // 取得開始與結束時間
+            // 解析小時 (00 - 23)
             const rawStartTime = idxStartTime !== -1 && cols[idxStartTime] ? cols[idxStartTime].trim() : '09:00';
-            const rawEndTime = idxEndTime !== -1 && cols[idxEndTime] ? cols[idxEndTime].trim() : '';
+            const { startHour } = parseTimeAndDuration(rawStartTime, '', rawStartDate, rawStartDate);
+            const hourStr = String(startHour).padStart(2, '0');
 
-            // 解析時間與計算時長
-            const { startHour, startMinute, durationHours, displayTimeStr } = parseTimeAndDuration(
-                rawStartTime, 
-                rawEndTime, 
-                rawStartDate, 
-                cols[idxEndDate] ? cols[idxEndDate].trim() : rawStartDate
-            );
-
-            // 自動判斷歸屬小朋友
+            // 自動或指定判斷歸屬
             let assignedChild = targetChild;
             if (targetChild === 'auto') {
                 const lowerTitle = title.toLowerCase();
                 if (lowerTitle.includes('jenna') || lowerTitle.includes('細女') || lowerTitle.includes('妹妹')) {
-                    assignedChild = 'jenna';
+                    assignedChild = 'child-b';
                 } else if (lowerTitle.includes('justin') || lowerTitle.includes('大仔') || lowerTitle.includes('哥哥')) {
-                    assignedChild = 'justin';
+                    assignedChild = 'child-a';
                 } else {
-                    assignedChild = 'justin'; // 預設值
+                    assignedChild = 'child-a'; // 預設 Justin
                 }
             }
 
-            importedEvents.push({
-                id: 'evt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-                title: title,
-                date: formattedDate,          // YYYY-MM-DD
-                startHour: startHour,        // 24小時制數字 (例如: 14)
-                startMinute: startMinute,    // 分鐘 (例如: 30)
-                duration: durationHours,     // 歷時 (小時，例如: 1.5)
-                timeText: displayTimeStr,    // 顯示字串 (例如: "14:00 - 15:30")
-                child: assignedChild         // 'justin' 或 'jenna'
+            // 新增至全域 schedules 陣列
+            schedules.push({
+                id: Date.now() + Math.random(),
+                child: assignedChild,
+                date: formattedDate,
+                hour: hourStr,
+                title: title
             });
+
+            addedCount++;
         }
 
-        // 將匯入的行程儲存並更新 UI
-        if (typeof saveEventsAndRender === 'function') {
-            saveEventsAndRender(importedEvents);
+        if (addedCount > 0) {
+            alert(`成功匯入 ${addedCount} 筆行程！`);
+            fileInput.value = ''; // 清空檔案選擇器
+            renderSchedules();   // 重新渲染畫面並儲存至 LocalStorage
         } else {
-            console.log('匯入成功：', importedEvents);
+            alert('未能成功匯入任何行程，請檢查 CSV 格式與資料內容。');
         }
     };
 
     reader.readAsText(file);
 }
-
-// 輔助函式 1：處理含有逗號與雙引號的 CSV 行
-function parseCSVLine(line) {
-    const result = [];
-    let start = 0;
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-        if (line[i] === '"') {
-            inQuotes = !inQuotes;
-        } else if (line[i] === ',' && !inQuotes) {
-            let field = line.substring(start, i).trim();
-            if (field.startsWith('"') && field.endsWith('"')) {
-                field = field.substring(1, field.length - 1).replace(/""/g, '"');
-            }
-            result.push(field);
-            start = i + 1;
-        }
-    }
-    let lastField = line.substring(start).trim();
-    if (lastField.startsWith('"') && lastField.endsWith('"')) {
-        lastField = lastField.substring(1, lastField.length - 1).replace(/""/g, '"');
-    }
-    result.push(lastField);
-    return result;
-}
-
-// 輔助函式 2：格式化日期 (支援 MM/DD/YYYY, YYYY-MM-DD, YYYY/MM/DD)
-function formatDate(dateStr) {
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return null;
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
-
-// 輔助函式 3：解析時間並計算持續時間 (Duration)
-function parseTimeAndDuration(startTimeStr, endTimeStr, startDateStr, endDateStr) {
-    // 支援 Google Calendar 時間格式 (例如: "02:00 PM", "14:00", "2")
-    let startD = new Date(`${startDateStr} ${startTimeStr}`);
-    
-    // 如果只有純數字小時 (簡易 CSV)
-    if (isNaN(startD.getTime()) && !isNaN(startTimeStr)) {
-        startD = new Date(`${startDateStr} ${startTimeStr.padStart(2, '0')}:00`);
-    }
-
-    if (isNaN(startD.getTime())) {
-        return { startHour: 9, startMinute: 0, durationHours: 1, displayTimeStr: "09:00" };
-    }
-
-    const startHour = startD.getHours();
-    const startMinute = startD.getMinutes();
-
-    let durationHours = 1; // 預設 1 小時
-    let displayTimeStr = `${String(startHour).padStart(2, '0')}:${String(startMinute).padStart(2, '0')}`;
-
-    if (endTimeStr) {
-        let endD = new Date(`${endDateStr || startDateStr} ${endTimeStr}`);
-        if (!isNaN(endD.getTime()) && endD > startD) {
-            const diffMs = endD - startD;
-            durationHours = Math.round((diffMs / (1000 * 60 * 60)) * 10) / 10; // 保留小數點後 1 位
-            
-            const endHour = endD.getHours();
-            const endMin = endD.getMinutes();
-            displayTimeStr += ` - ${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
-        }
-    }
-
-    return { startHour, startMinute, durationHours, displayTimeStr };
-}
-
     /* ================= 支出邏輯 (含月份過濾) ================= */
     function renderExpenses() {
       const currentMonth = document.getElementById('expense-month').value;
